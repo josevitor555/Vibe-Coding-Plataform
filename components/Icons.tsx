@@ -19,7 +19,8 @@ import {
   Copy,
   Check,
   Maximize2,
-  Minimize2
+  Minimize2,
+  Mic
 } from 'lucide-react';
 
 export const Icons = {
@@ -43,5 +44,6 @@ export const Icons = {
   Copy,
   Check,
   Maximize: Maximize2,
-  Minimize: Minimize2
+  Minimize: Minimize2,
+  Mic
 };

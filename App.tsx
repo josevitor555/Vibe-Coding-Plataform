@@ -48,11 +48,13 @@ const App: React.FC = () => {
   const [isCopied, setIsCopied] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   
   // Ref for the emulator iframe
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<any>(null);
 
   // Initialize Chat Session
   useEffect(() => {
@@ -90,6 +92,59 @@ const App: React.FC = () => {
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
     }
+  };
+
+  const handleVoiceInput = () => {
+    if (isListening) {
+      if (recognitionRef.current) {
+        recognitionRef.current.stop();
+      }
+      setIsListening(false);
+      return;
+    }
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    
+    if (!SpeechRecognition) {
+      alert("Voice input is not supported in this browser.");
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = 'en-US';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onstart = () => {
+      setIsListening(true);
+    };
+
+    recognition.onresult = (event: any) => {
+      const transcript = event.results[0][0].transcript;
+      setInput(prev => {
+        const spacer = prev.length > 0 && !prev.endsWith(' ') ? ' ' : '';
+        return prev + spacer + transcript;
+      });
+      // Adjust textarea height after insertion
+      setTimeout(() => {
+         if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 200)}px`;
+         }
+      }, 0);
+    };
+
+    recognition.onerror = (event: any) => {
+      console.error('Speech recognition error', event.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
   };
 
   const extractHtmlFromResponse = (text: string) => {
@@ -304,7 +359,13 @@ const App: React.FC = () => {
                      <div className="flex items-center justify-between px-2 pb-1 pt-2">
                         <div className="flex gap-2">
                             <button className="p-2 text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-white/5"><Icons.Paperclip size={18} /></button>
-                            <button className="p-2 text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-white/5"><Icons.Sparkles size={18} /></button>
+                            <button 
+                                onClick={handleVoiceInput}
+                                className={`p-2 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-white/5 ${isListening ? 'text-red-500 animate-pulse' : 'text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white'}`}
+                                title="Voice Input"
+                            >
+                                <Icons.Mic size={18} />
+                            </button>
                         </div>
                         <button 
                             onClick={handleSendMessage}
@@ -379,16 +440,24 @@ const App: React.FC = () => {
                             onChange={handleInput}
                             onKeyDown={handleKeyDown}
                             placeholder="Refine the design..."
-                            className="w-full bg-transparent text-gray-900 dark:text-gray-200 placeholder-gray-500 dark:placeholder-gray-600 px-3 py-2 min-h-[44px] max-h-[120px] resize-none focus:outline-none text-sm font-light"
+                            className="w-full bg-transparent text-gray-900 dark:text-gray-200 placeholder-gray-500 dark:placeholder-gray-600 px-3 py-2 min-h-[44px] max-h-[120px] resize-none focus:outline-none text-sm font-light pr-20"
                             rows={1}
                         />
-                         <button 
-                            onClick={handleSendMessage}
-                            disabled={!input.trim() || isTyping}
-                            className="absolute bottom-2 right-2 p-1.5 bg-gray-900 dark:bg-white text-white dark:text-black rounded-lg disabled:opacity-50 hover:bg-gray-700 dark:hover:bg-gray-200 transition-colors"
-                        >
-                            <Icons.ArrowUp size={14} />
-                        </button>
+                         <div className="absolute bottom-2 right-2 flex items-center gap-1">
+                             <button 
+                                onClick={handleVoiceInput}
+                                className={`p-1.5 transition-colors rounded-lg hover:bg-gray-200 dark:hover:bg-white/10 ${isListening ? 'text-red-500 animate-pulse' : 'text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white'}`}
+                            >
+                                <Icons.Mic size={14} />
+                            </button>
+                             <button 
+                                onClick={handleSendMessage}
+                                disabled={!input.trim() || isTyping}
+                                className="p-1.5 bg-gray-900 dark:bg-white text-white dark:text-black rounded-lg disabled:opacity-50 hover:bg-gray-700 dark:hover:bg-gray-200 transition-colors"
+                            >
+                                <Icons.ArrowUp size={14} />
+                            </button>
+                        </div>
                     </div>
                 </div>
             </div>
