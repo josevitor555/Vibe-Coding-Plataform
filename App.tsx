@@ -208,13 +208,13 @@ const App: React.FC = () => {
   }, [messages, isTyping]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#050505] text-gray-900 dark:text-gray-200 font-sans selection:bg-purple-500/30 selection:text-purple-900 dark:selection:text-purple-100 flex flex-col relative overflow-hidden transition-colors duration-500">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#050505] text-gray-900 dark:text-gray-200 font-sans selection:bg-gray-300/50 selection:text-black dark:selection:text-white flex flex-col relative overflow-hidden transition-colors duration-500">
       
       {/* BACKGROUND VIBE EFFECTS */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-         {/* Purple Wave Gradient */}
-         <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-purple-400/10 dark:bg-purple-900/20 rounded-full blur-[120px] animate-pulse"></div>
-         <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-indigo-400/10 dark:bg-indigo-900/20 rounded-full blur-[120px] animate-pulse delay-1000"></div>
+         {/* Neutral/Monochrome Wave Gradient */}
+         <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-gray-200/50 dark:bg-white/5 rounded-full blur-[120px] animate-pulse"></div>
+         <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-gray-200/50 dark:bg-white/5 rounded-full blur-[120px] animate-pulse delay-1000"></div>
          
          {/* Wave Overlay */}
          <div className="absolute inset-0 opacity-10 dark:opacity-20 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay"></div>
@@ -235,16 +235,16 @@ const App: React.FC = () => {
       <header className={`relative z-50 flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-white/5 backdrop-blur-md transition-all duration-500 ${isWorkspaceMode ? 'bg-white/80 dark:bg-[#050505]/80' : 'bg-transparent'}`}>
         <div className="flex items-center gap-8">
           <div className="flex items-center gap-2 cursor-pointer group">
-            <div className="w-8 h-8 bg-gradient-to-br from-purple-600 to-indigo-600 rounded-lg flex items-center justify-center shadow-lg shadow-purple-500/20 group-hover:shadow-purple-500/30 transition-shadow">
-                <Icons.Sparkles size={16} className="text-white" />
+            <div className="w-8 h-8 bg-black dark:bg-white rounded-lg flex items-center justify-center shadow-lg shadow-black/5 dark:shadow-white/5 group-hover:scale-105 transition-transform">
+                <Icons.Sparkles size={16} className="text-white dark:text-black" />
             </div>
             <span className="font-semibold tracking-tight text-gray-900 dark:text-white">VibeCode</span>
           </div>
           {!isWorkspaceMode && (
             <nav className="hidden md:flex items-center gap-6 text-[13px] font-medium text-gray-500 dark:text-gray-500">
-                <a href="#" className="hover:text-purple-600 dark:hover:text-purple-400 transition-colors">Create</a>
-                <a href="#" className="hover:text-purple-600 dark:hover:text-purple-400 transition-colors">Discover</a>
-                <a href="#" className="hover:text-purple-600 dark:hover:text-purple-400 transition-colors">Pricing</a>
+                <a href="#" className="hover:text-black dark:hover:text-white transition-colors">Create</a>
+                <a href="#" className="hover:text-black dark:hover:text-white transition-colors">Discover</a>
+                <a href="#" className="hover:text-black dark:hover:text-white transition-colors">Pricing</a>
             </nav>
           )}
         </div>
@@ -264,7 +264,7 @@ const App: React.FC = () => {
                   <Icons.Moon size={14} />
                 </button>
             </div>
-            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-purple-500 to-violet-500 border border-white/10 ring-2 ring-white dark:ring-black"></div>
+            <div className="w-8 h-8 rounded-full bg-gray-200 dark:bg-white/10 border border-white/10 ring-2 ring-white dark:ring-black"></div>
         </div>
       </header>
 
@@ -274,23 +274,23 @@ const App: React.FC = () => {
         {/* LANDING MODE */}
         {!isWorkspaceMode && (
            <div className="flex flex-col items-center justify-center text-center w-full max-w-4xl animate-fade-in">
-             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 dark:bg-purple-900/10 border border-purple-500/20 text-[11px] font-mono text-purple-600 dark:text-purple-300 mb-8 backdrop-blur-md shadow-[0_0_15px_rgba(168,85,247,0.15)]">
-              <span className="w-1.5 h-1.5 rounded-full bg-purple-500 dark:bg-purple-400 animate-pulse"></span>
+             <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-[11px] font-mono text-gray-900 dark:text-white mb-8 backdrop-blur-md shadow-[0_0_15px_rgba(0,0,0,0.05)] dark:shadow-[0_0_15px_rgba(255,255,255,0.05)]">
+              <span className="w-1.5 h-1.5 rounded-full bg-black dark:bg-white animate-pulse"></span>
               <span>Vibe Coding Engine v3.0 Active</span>
             </div>
             
             <h1 className="text-5xl md:text-8xl font-medium tracking-tighter text-gray-900 dark:text-white mb-8 leading-[0.9]">
               Code with <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-purple-600 via-fuchsia-500 to-indigo-600 dark:from-purple-400 dark:via-fuchsia-300 dark:to-white">pure vibes.</span>
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-black via-gray-600 to-black dark:from-white dark:via-gray-400 dark:to-white">pure vibes.</span>
             </h1>
             
             <p className="text-gray-500 dark:text-gray-400 text-lg font-light mb-12 max-w-2xl leading-relaxed">
-              Describe your dream interface. We'll generate the <span className="text-purple-600 dark:text-purple-300">HTML</span>, <span className="text-purple-600 dark:text-purple-300">Tailwind</span>, and <span className="text-purple-600 dark:text-purple-300">Logic</span> instantly.
+              Describe your dream interface. We'll generate the <span className="text-gray-900 dark:text-white font-medium">HTML</span>, <span className="text-gray-900 dark:text-white font-medium">Tailwind</span>, and <span className="text-gray-900 dark:text-white font-medium">Logic</span> instantly.
             </p>
 
             {/* Input Component (Landing) */}
             <div className="w-full max-w-2xl relative group z-20">
-                <div className="absolute -inset-1 bg-gradient-to-r from-purple-600 to-indigo-600 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
+                <div className="absolute -inset-1 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-800 dark:to-gray-700 rounded-2xl blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
                 <div className="relative bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 rounded-xl p-2 shadow-xl dark:shadow-2xl">
                     <textarea
                         ref={textareaRef}
@@ -303,8 +303,8 @@ const App: React.FC = () => {
                     />
                      <div className="flex items-center justify-between px-2 pb-1 pt-2">
                         <div className="flex gap-2">
-                            <button className="p-2 text-gray-400 dark:text-gray-500 hover:text-purple-500 dark:hover:text-purple-400 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-white/5"><Icons.Paperclip size={18} /></button>
-                            <button className="p-2 text-gray-400 dark:text-gray-500 hover:text-purple-500 dark:hover:text-purple-400 transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-white/5"><Icons.Sparkles size={18} /></button>
+                            <button className="p-2 text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-white/5"><Icons.Paperclip size={18} /></button>
+                            <button className="p-2 text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-white/5"><Icons.Sparkles size={18} /></button>
                         </div>
                         <button 
                             onClick={handleSendMessage}
@@ -345,20 +345,20 @@ const App: React.FC = () => {
                             ) : (
                                 <div className="w-full">
                                     <div className="flex items-center gap-2 mb-2">
-                                        <Icons.Sparkles size={12} className="text-purple-600 dark:text-purple-500" />
-                                        <span className="text-xs font-mono text-purple-600 dark:text-purple-400">VibeCode Engine</span>
+                                        <Icons.Sparkles size={12} className="text-black dark:text-white" />
+                                        <span className="text-xs font-mono text-gray-500 dark:text-gray-400">VibeCode Engine</span>
                                     </div>
                                     <div className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed font-mono bg-gray-50 dark:bg-[#0A0A0A] p-4 rounded-xl border border-gray-200 dark:border-white/5 overflow-x-auto relative group">
                                         <pre className="whitespace-pre-wrap break-words text-xs">
                                             {/* We only show a preview of the code or the text response */}
                                             {msg.text.substring(0, 300)}...
-                                            {msg.isStreaming && <span className="inline-block w-2 h-4 bg-purple-500 ml-1 animate-pulse align-middle"></span>}
+                                            {msg.isStreaming && <span className="inline-block w-2 h-4 bg-black dark:bg-white ml-1 animate-pulse align-middle"></span>}
                                         </pre>
                                         <div className="mt-2 pt-2 border-t border-gray-200 dark:border-white/5 flex justify-between items-center">
                                              <span className="text-[10px] text-gray-500 dark:text-gray-600">Generated Code</span>
                                              <button 
                                                 onClick={() => setViewMode('preview')}
-                                                className="text-[10px] text-purple-600 dark:text-purple-400 hover:text-purple-500 dark:hover:text-purple-300 flex items-center gap-1 transition-colors"
+                                                className="text-[10px] text-black dark:text-white hover:text-gray-600 dark:hover:text-gray-300 flex items-center gap-1 transition-colors"
                                              >
                                                 <Icons.Zap size={10} /> Live Preview
                                              </button>
@@ -373,7 +373,7 @@ const App: React.FC = () => {
 
                 {/* Input Area (Workspace) */}
                 <div className="p-4 border-t border-gray-200 dark:border-white/5 bg-white dark:bg-[#050505]">
-                    <div className="relative bg-gray-50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 rounded-xl p-2 focus-within:border-purple-500/50 transition-colors">
+                    <div className="relative bg-gray-50 dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 rounded-xl p-2 focus-within:border-black/20 dark:focus-within:border-white/20 transition-colors">
                         <textarea
                             value={input}
                             onChange={handleInput}
@@ -447,7 +447,7 @@ const App: React.FC = () => {
                             {messages.length > 0 && messages[messages.length-1].text === '' && (
                                 <div className="absolute inset-0 flex items-center justify-center bg-white dark:bg-[#050505] z-10">
                                     <div className="flex flex-col items-center gap-4">
-                                        <div className="w-12 h-12 border-2 border-purple-500/30 border-t-purple-600 dark:border-t-purple-500 rounded-full animate-spin"></div>
+                                        <div className="w-12 h-12 border-2 border-black/10 dark:border-white/10 border-t-black dark:border-t-white rounded-full animate-spin"></div>
                                         <p className="text-gray-500 font-mono text-xs animate-pulse">Initializing Vibe Engine...</p>
                                     </div>
                                 </div>
