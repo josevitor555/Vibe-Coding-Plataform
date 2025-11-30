@@ -20,7 +20,12 @@ import {
   Check,
   Maximize2,
   Minimize2,
-  Mic
+  Mic,
+  FileCode,
+  FileJson,
+  FileType,
+  Settings,
+  File
 } from 'lucide-react';
 
 export const Icons = {
@@ -45,5 +50,10 @@ export const Icons = {
   Check,
   Maximize: Maximize2,
   Minimize: Minimize2,
-  Mic
+  Mic,
+  FileCode,
+  FileJson,
+  FileType,
+  Settings,
+  File
 };

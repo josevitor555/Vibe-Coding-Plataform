@@ -11,6 +11,7 @@ export interface ProjectTemplate {
   description: string;
   imageUrl: string;
   date: string;
+  prompt?: string;
 }
 
 export enum ModelType {
