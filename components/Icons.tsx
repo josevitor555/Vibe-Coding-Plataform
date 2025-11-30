@@ -17,7 +17,9 @@ import {
   Code,
   Eye,
   Copy,
-  Check
+  Check,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
 
 export const Icons = {
@@ -39,5 +41,7 @@ export const Icons = {
   Code,
   Eye,
   Copy,
-  Check
+  Check,
+  Maximize: Maximize2,
+  Minimize: Minimize2
 };

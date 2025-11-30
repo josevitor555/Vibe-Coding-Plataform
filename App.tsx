@@ -47,6 +47,7 @@ const App: React.FC = () => {
   const [currentCode, setCurrentCode] = useState('');
   const [isCopied, setIsCopied] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
+  const [isFullscreen, setIsFullscreen] = useState(false);
   
   // Ref for the emulator iframe
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -69,6 +70,18 @@ const App: React.FC = () => {
       document.documentElement.classList.remove('dark');
     }
   }, [theme]);
+
+  // Syntax Highlighting Effect
+  useEffect(() => {
+    if (viewMode === 'code' && currentCode) {
+      // Use setTimeout to allow the DOM to update with new code before highlighting
+      setTimeout(() => {
+        if ((window as any).Prism) {
+          (window as any).Prism.highlightAll();
+        }
+      }, 10);
+    }
+  }, [viewMode, currentCode]);
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
@@ -320,7 +333,7 @@ const App: React.FC = () => {
           <div className="flex w-full h-full overflow-hidden">
             
             {/* Left Panel: Chat & Code */}
-            <div className="w-1/3 min-w-[400px] border-r border-gray-200 dark:border-white/5 bg-white dark:bg-[#050505] flex flex-col h-full relative z-20 shadow-2xl">
+            <div className={`${isFullscreen ? 'hidden' : 'w-1/3 min-w-[400px]'} border-r border-gray-200 dark:border-white/5 bg-white dark:bg-[#050505] flex flex-col h-full relative z-20 shadow-2xl transition-all duration-300`}>
                 {/* Chat History */}
                 <div className="flex-1 overflow-y-auto p-4 space-y-6 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-white/10 scrollbar-track-transparent">
                     {messages.map((msg, idx) => (
@@ -381,7 +394,7 @@ const App: React.FC = () => {
             </div>
 
             {/* Right Panel: Emulator/Preview */}
-            <div className="flex-1 bg-gray-100 dark:bg-[#0A0A0A] h-full flex flex-col relative overflow-hidden">
+            <div className="flex-1 bg-gray-100 dark:bg-[#0A0A0A] h-full flex flex-col relative overflow-hidden transition-all duration-300">
                 {/* Emulator Header */}
                 <div className="h-12 bg-white dark:bg-[#0F0F0F] border-b border-gray-200 dark:border-white/5 flex items-center justify-between px-4">
                     <div className="flex items-center gap-4">
@@ -415,6 +428,13 @@ const App: React.FC = () => {
                              <div className="w-1.5 h-1.5 rounded-full bg-green-500 animate-pulse"></div>
                              localhost:3000
                         </div>
+                        <button 
+                            onClick={() => setIsFullscreen(!isFullscreen)}
+                            className="p-1.5 text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors rounded-md hover:bg-gray-100 dark:hover:bg-white/5"
+                            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
+                        >
+                            {isFullscreen ? <Icons.Minimize size={14} /> : <Icons.Maximize size={14} />}
+                        </button>
                     </div>
                 </div>
 
@@ -442,24 +462,27 @@ const App: React.FC = () => {
                     </div>
 
                     {/* CODE MODE */}
-                    <div className={`absolute inset-0 w-full h-full bg-gray-50 dark:bg-[#0d0d0d] overflow-hidden flex flex-col transition-all duration-500 ${viewMode === 'code' ? 'opacity-100 translate-x-0 z-10' : 'opacity-0 translate-x-10 z-0 pointer-events-none'}`}>
-                        <div className="flex items-center justify-between px-4 py-2 bg-gray-100 dark:bg-[#151515] border-b border-gray-200 dark:border-white/5">
-                            <span className="text-xs text-gray-500 font-mono">index.html</span>
+                    {/* We force a dark background here for IDE feel using bg-[#1e1e1e] and ensure transparency for Prism */}
+                    <div className={`absolute inset-0 w-full h-full bg-[#1e1e1e] overflow-hidden flex flex-col transition-all duration-500 ${viewMode === 'code' ? 'opacity-100 translate-x-0 z-10' : 'opacity-0 translate-x-10 z-0 pointer-events-none'}`}>
+                        <div className="flex items-center justify-between px-4 py-2 bg-[#252526] border-b border-[#333]">
+                            <span className="text-xs text-gray-400 font-mono">index.html</span>
                             <button 
                                 onClick={handleCopyCode}
-                                className="flex items-center gap-1.5 text-[10px] text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors bg-white dark:bg-white/5 px-2 py-1 rounded border border-gray-200 dark:border-white/5 hover:bg-gray-50 dark:hover:bg-white/10"
+                                className="flex items-center gap-1.5 text-[10px] text-gray-400 hover:text-white transition-colors bg-white/5 px-2 py-1 rounded border border-white/5 hover:bg-white/10"
                             >
-                                {isCopied ? <Icons.Check size={12} className="text-green-500 dark:text-green-400" /> : <Icons.Copy size={12} />}
+                                {isCopied ? <Icons.Check size={12} className="text-green-400" /> : <Icons.Copy size={12} />}
                                 {isCopied ? 'Copied' : 'Copy'}
                             </button>
                         </div>
-                        <div className="flex-1 overflow-auto p-4 font-mono text-xs leading-relaxed scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-white/10 scrollbar-track-transparent">
+                        <div className="flex-1 overflow-auto p-4 font-mono text-xs leading-relaxed scrollbar-thin scrollbar-thumb-[#424242] scrollbar-track-transparent">
                             {currentCode ? (
-                                <pre className="text-gray-800 dark:text-gray-300 whitespace-pre">
-                                    {currentCode}
+                                <pre className="!bg-transparent !m-0 !p-0">
+                                    <code className="language-html">
+                                        {currentCode}
+                                    </code>
                                 </pre>
                             ) : (
-                                <div className="h-full flex flex-col items-center justify-center text-gray-400 dark:text-gray-600 gap-2">
+                                <div className="h-full flex flex-col items-center justify-center text-gray-600 gap-2">
                                     <Icons.Code size={24} className="opacity-20" />
                                     <span className="text-sm">No code generated yet.</span>
                                 </div>
