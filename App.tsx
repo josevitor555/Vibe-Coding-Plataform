@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Icons } from './components/Icons';
 import { ProjectCard } from './components/ProjectCard';
+import { Tooltip } from './components/Tooltip';
 import { ChatMessage, ProjectTemplate, ModelType } from './types';
 import { createVibeCodeSession } from './services/gemini';
 import { Chat, GenerateContentResponse } from "@google/genai";
@@ -187,6 +188,24 @@ const App: React.FC = () => {
     return "";
   };
 
+  const detectFiles = (html: string) => {
+    if (!html) return [];
+    const files = [
+        { name: 'index.html', icon: Icons.FileCode } // Always present if HTML is generated
+    ];
+    
+    if (/<style[^>]*>[\s\S]*?<\/style>/i.test(html)) {
+        files.push({ name: 'styles.css', icon: Icons.FileType });
+    }
+    
+    // Check for inline scripts that are not just src imports
+    if (/<script(?![^>]*src=)([^>]*>)([\s\S]*?)<\/script>/gi.test(html)) {
+         files.push({ name: 'script.js', icon: Icons.FileJson });
+    }
+    
+    return files;
+  };
+
   const updateEmulator = (fullText: string) => {
     const htmlCode = extractHtmlFromResponse(fullText);
     if (htmlCode) {
@@ -314,27 +333,15 @@ const App: React.FC = () => {
   }, [messages, isTyping]);
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-[#050505] text-gray-900 dark:text-gray-200 font-sans selection:bg-gray-300/50 selection:text-black dark:selection:text-white flex flex-col relative overflow-hidden transition-colors duration-500">
+    <div className="min-h-screen bg-gray-50 dark:bg-[#050505] text-black dark:text-white font-sans selection:bg-gray-300/50 selection:text-black dark:selection:text-white flex flex-col relative overflow-hidden transition-colors duration-500">
       
       {/* BACKGROUND VIBE EFFECTS */}
-      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-         {/* Neutral/Monochrome Wave Gradient */}
-         <div className="absolute top-[-20%] left-[-10%] w-[60%] h-[60%] bg-gray-200/50 dark:bg-white/5 rounded-full blur-[140px] animate-pulse"></div>
-         <div className="absolute bottom-[-20%] right-[-10%] w-[60%] h-[60%] bg-gray-200/50 dark:bg-white/5 rounded-full blur-[140px] animate-pulse delay-1000"></div>
+      <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden bg-[#050505]">
+         {/* Pulsing Gray Gradient */}
+         <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-800/10 via-[#050505] to-[#050505] animate-pulse-slow"></div>
          
          {/* Wave Overlay */}
-         <div className="absolute inset-0 opacity-10 dark:opacity-20 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay"></div>
-         
-         {/* Grid */}
-         <div 
-          className="absolute inset-0 z-0 opacity-[0.03] dark:opacity-[0.03]" 
-          style={{
-            backgroundImage: theme === 'dark' 
-                ? `linear-gradient(#fff 1px, transparent 1px), linear-gradient(90deg, #fff 1px, transparent 1px)`
-                : `linear-gradient(#000 1px, transparent 1px), linear-gradient(90deg, #000 1px, transparent 1px)`,
-            backgroundSize: '45px 45px'
-          }}
-        ></div>
+         <div className="absolute inset-0 opacity-20 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay"></div>
       </div>
 
       {/* Navigation */}
@@ -344,31 +351,35 @@ const App: React.FC = () => {
             <div className="w-10 h-10 bg-black dark:bg-white rounded-xl flex items-center justify-center shadow-xl shadow-black/5 dark:shadow-white/5 group-hover:scale-105 transition-transform">
                 <Icons.Sparkles size={20} className="text-white dark:text-black" />
             </div>
-            <span className="text-lg font-bold tracking-tight text-gray-900 dark:text-white">VibeCode</span>
+            <span className="text-lg font-bold tracking-tight text-black dark:text-white">VibeCode</span>
           </div>
           {!isWorkspaceMode && (
-            <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-gray-500 dark:text-gray-500">
-                <a href="#" className="hover:text-black dark:hover:text-white transition-colors">Create</a>
-                <a href="#" className="hover:text-black dark:hover:text-white transition-colors">Discover</a>
-                <a href="#" className="hover:text-black dark:hover:text-white transition-colors">Pricing</a>
+            <nav className="hidden md:flex items-center gap-8 text-sm font-medium text-black dark:text-white">
+                <a href="#" className="hover:text-gray-500 dark:hover:text-gray-400 transition-colors">Create</a>
+                <a href="#" className="hover:text-gray-500 dark:hover:text-gray-400 transition-colors">Discover</a>
+                <a href="#" className="hover:text-gray-500 dark:hover:text-gray-400 transition-colors">Pricing</a>
             </nav>
           )}
         </div>
         
         <div className="flex items-center gap-5">
             <div className="flex items-center bg-gray-100 dark:bg-[#0F0F0F] rounded-full p-1.5 border border-gray-200 dark:border-white/5">
-                <button 
-                  onClick={() => setTheme('light')}
-                  className={`p-2 rounded-full transition-all duration-300 ${theme === 'light' ? 'bg-white text-yellow-500 shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
-                >
-                  <Icons.Sun size={18} />
-                </button>
-                <button 
-                  onClick={() => setTheme('dark')}
-                  className={`p-2 rounded-full transition-all duration-300 ${theme === 'dark' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
-                >
-                  <Icons.Moon size={18} />
-                </button>
+                <Tooltip content="Light Mode" position="bottom">
+                  <button 
+                    onClick={() => setTheme('light')}
+                    className={`p-2 rounded-full transition-all duration-300 ${theme === 'light' ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+                  >
+                    <Icons.Sun size={18} />
+                  </button>
+                </Tooltip>
+                <Tooltip content="Dark Mode" position="bottom">
+                  <button 
+                    onClick={() => setTheme('dark')}
+                    className={`p-2 rounded-full transition-all duration-300 ${theme === 'dark' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+                  >
+                    <Icons.Moon size={18} />
+                  </button>
+                </Tooltip>
             </div>
             <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-white/10 border border-white/10 ring-2 ring-white dark:ring-black"></div>
         </div>
@@ -380,22 +391,28 @@ const App: React.FC = () => {
         {/* LANDING MODE */}
         {!isWorkspaceMode && (
            <div className="flex flex-col items-center justify-center text-center w-full max-w-6xl animate-fade-in">
-             <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm font-mono text-gray-900 dark:text-white mb-10 backdrop-blur-md shadow-[0_0_20px_rgba(0,0,0,0.05)] dark:shadow-[0_0_20px_rgba(255,255,255,0.05)]">
+             <div className="inline-flex items-center gap-2.5 px-5 py-2 rounded-full bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/10 text-sm font-mono text-black dark:text-white mb-10 backdrop-blur-md shadow-[0_0_20px_rgba(0,0,0,0.05)] dark:shadow-[0_0_20px_rgba(255,255,255,0.05)]">
               <span className="w-2 h-2 rounded-full bg-black dark:bg-white animate-pulse"></span>
               <span>Vibe Coding Engine v3.0 Active</span>
             </div>
             
-            <h1 className="text-7xl md:text-9xl font-medium tracking-tighter text-gray-900 dark:text-white mb-10 leading-[0.9]">
+            <h1 className="text-7xl md:text-9xl font-medium tracking-tighter text-black dark:text-white mb-10 leading-[0.9]">
               Code with <br />
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-black via-gray-600 to-black dark:from-white dark:via-gray-400 dark:to-white">pure vibes.</span>
+              <span className="text-gray-500 dark:text-gray-400">pure vibes.</span>
             </h1>
             
-            <p className="text-gray-500 dark:text-gray-400 text-2xl font-light mb-16 max-w-3xl leading-relaxed">
-              Describe your dream interface. We'll generate the <span className="text-gray-900 dark:text-white font-medium">HTML</span>, <span className="text-gray-900 dark:text-white font-medium">Tailwind</span>, and <span className="text-gray-900 dark:text-white font-medium">Logic</span> instantly.
+            <p className="text-black dark:text-white text-2xl font-light mb-16 max-w-3xl leading-relaxed">
+              Describe your dream interface. We'll generate the <span className="font-medium hover:text-gray-500 dark:hover:text-gray-400 transition-colors cursor-default">HTML</span>, <span className="font-medium hover:text-gray-500 dark:hover:text-gray-400 transition-colors cursor-default">Tailwind</span>, and <span className="font-medium hover:text-gray-500 dark:hover:text-gray-400 transition-colors cursor-default">Logic</span> instantly.
             </p>
 
             {/* Input Component (Landing) */}
             <div className="w-full max-w-4xl relative group z-20">
+                
+                {/* Decorative Grid Pattern */}
+                <div className="absolute -top-24 -bottom-24 -left-24 -right-24 -z-10 pointer-events-none">
+                    <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000010_1px,transparent_1px),linear-gradient(to_bottom,#00000010_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#ffffff10_1px,transparent_1px),linear-gradient(to_bottom,#ffffff10_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_0%,transparent_100%)]" />
+                </div>
+
                 <div className="absolute -inset-1.5 bg-gradient-to-r from-gray-200 to-gray-300 dark:from-gray-800 dark:to-gray-700 rounded-3xl blur opacity-20 group-hover:opacity-40 transition duration-500"></div>
                 <div className="relative bg-white dark:bg-[#0A0A0A] border border-gray-200 dark:border-white/10 rounded-2xl p-2.5 shadow-2xl dark:shadow-[0_0_50px_rgba(0,0,0,0.5)]">
                     <textarea
@@ -409,18 +426,21 @@ const App: React.FC = () => {
                     />
                      <div className="flex items-center justify-between px-4 pb-2 pt-3">
                         <div className="flex gap-3">
-                            <button className="p-3 text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white transition-colors rounded-xl hover:bg-gray-100 dark:hover:bg-white/5"><Icons.Paperclip size={22} /></button>
-                            <button 
-                                onClick={handleVoiceInput}
-                                className={`p-3 transition-colors rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 ${isListening ? 'text-red-500 animate-pulse' : 'text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white'}`}
-                                title="Voice Input"
-                            >
-                                <Icons.Mic size={22} />
-                            </button>
+                            <Tooltip content="Attach Context" position="top">
+                              <button className="p-3 text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white transition-colors rounded-xl hover:bg-gray-100 dark:hover:bg-white/5"><Icons.Paperclip size={22} /></button>
+                            </Tooltip>
+                            <Tooltip content="Voice Input" position="top">
+                              <button 
+                                  onClick={handleVoiceInput}
+                                  className={`p-3 transition-colors rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 ${isListening ? 'text-red-500 animate-pulse' : 'text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white'}`}
+                              >
+                                  <Icons.Mic size={22} />
+                              </button>
+                            </Tooltip>
                         </div>
                         <button 
                             onClick={handleSendMessage}
-                            className="bg-gray-900 dark:bg-white text-white dark:text-black px-6 py-3 rounded-xl font-medium text-base hover:bg-gray-800 dark:hover:bg-gray-200 transition-colors flex items-center gap-2.5 shadow-lg"
+                            className="bg-gray-900 dark:bg-white text-white dark:text-black px-6 py-3 rounded-xl font-medium text-base hover:bg-gray-700 dark:hover:bg-gray-300 transition-colors flex items-center gap-2.5 shadow-lg"
                         >
                             Generate <Icons.ArrowUp size={18} />
                         </button>
@@ -430,7 +450,7 @@ const App: React.FC = () => {
 
             {/* Recent Templates */}
             <div className="mt-32 w-full text-left">
-                <h3 className="text-base font-mono text-gray-400 dark:text-gray-500 mb-8 pl-1">START FROM A TEMPLATE</h3>
+                <h3 className="text-base font-mono text-black dark:text-white mb-8 pl-1">START FROM A TEMPLATE</h3>
                 <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
                      {RECENT_PROJECTS.map((project) => (
                         <ProjectCard 
@@ -443,17 +463,17 @@ const App: React.FC = () => {
             </div>
 
             {/* Footer */}
-            <footer className="w-full mt-32 mb-16 pt-10 border-t border-gray-200 dark:border-white/5 flex flex-col md:flex-row items-center justify-between text-sm text-gray-400 dark:text-gray-600">
+            <footer className="w-full mt-32 mb-16 pt-10 border-t border-gray-200 dark:border-white/5 flex flex-col md:flex-row items-center justify-between text-sm text-black dark:text-white">
                 <div className="flex items-center gap-2.5">
-                   <div className="w-5 h-5 bg-gray-900 dark:bg-white rounded-md flex items-center justify-center">
+                   <div className="w-5 h-5 bg-black dark:bg-white rounded-md flex items-center justify-center">
                       <Icons.Sparkles size={10} className="text-white dark:text-black" />
                    </div>
                    <span>© 2024 VibeCode Inc.</span>
                 </div>
                 <div className="flex items-center gap-8 mt-6 md:mt-0">
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">Privacy Policy</a>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">Terms of Service</a>
-                    <a href="#" className="hover:text-black dark:hover:text-white transition-colors">Twitter</a>
+                    <a href="#" className="hover:text-gray-500 dark:hover:text-gray-400 transition-colors">Privacy Policy</a>
+                    <a href="#" className="hover:text-gray-500 dark:hover:text-gray-400 transition-colors">Terms of Service</a>
+                    <a href="#" className="hover:text-gray-500 dark:hover:text-gray-400 transition-colors">Twitter</a>
                 </div>
             </footer>
            </div>
@@ -467,7 +487,11 @@ const App: React.FC = () => {
             <div className={`${isFullscreen ? 'hidden' : 'w-[450px] min-w-[450px] lg:w-[480px]'} border-r border-gray-200 dark:border-white/5 bg-white dark:bg-[#050505] flex flex-col h-full relative z-20 shadow-2xl transition-all duration-300`}>
                 {/* Chat History */}
                 <div className="flex-1 overflow-y-auto p-5 space-y-8 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-white/10 scrollbar-track-transparent">
-                    {messages.map((msg, idx) => (
+                    {messages.map((msg, idx) => {
+                        // Check for created files if it's a model message
+                        const createdFiles = msg.role === 'model' ? detectFiles(extractHtmlFromResponse(msg.text)) : [];
+                        
+                        return (
                         <div key={idx} className={`animate-fade-in ${msg.role === 'model' ? '' : 'flex justify-end'}`}>
                             {msg.role === 'user' ? (
                                 <div className="bg-gray-100 dark:bg-[#151515] border border-gray-200 dark:border-white/5 text-gray-900 dark:text-gray-200 px-5 py-4 rounded-3xl rounded-tr-sm max-w-[90%] text-base shadow-sm leading-relaxed">
@@ -479,6 +503,20 @@ const App: React.FC = () => {
                                         <Icons.Sparkles size={14} className="text-black dark:text-white" />
                                         <span className="text-sm font-mono text-gray-500 dark:text-gray-400">VibeCode Engine</span>
                                     </div>
+                                    
+                                    {/* File Logs */}
+                                    {createdFiles.length > 0 && (
+                                        <div className="flex flex-wrap gap-2 mb-3 animate-fade-in">
+                                            {createdFiles.map(f => (
+                                                <div key={f.name} className="flex items-center gap-1.5 px-3 py-1.5 bg-gray-100 dark:bg-white/5 border border-gray-200 dark:border-white/5 rounded-lg text-xs font-mono text-gray-600 dark:text-gray-300">
+                                                    <f.icon size={12} className="text-gray-500" />
+                                                    <span>{f.name}</span>
+                                                    <Icons.Check size={10} className="text-green-500 ml-1" />
+                                                </div>
+                                            ))}
+                                        </div>
+                                    )}
+
                                     <div className="text-gray-600 dark:text-gray-400 text-base leading-relaxed font-mono bg-gray-50 dark:bg-[#0A0A0A] p-5 rounded-2xl border border-gray-200 dark:border-white/5 overflow-x-auto relative group shadow-inner">
                                         <pre className="whitespace-pre-wrap break-words text-sm">
                                             {/* We only show a preview of the code or the text response */}
@@ -498,7 +536,7 @@ const App: React.FC = () => {
                                 </div>
                             )}
                         </div>
-                    ))}
+                    )})}
                     <div ref={chatEndRef} />
                 </div>
 
@@ -514,19 +552,23 @@ const App: React.FC = () => {
                             rows={1}
                         />
                          <div className="absolute bottom-3 right-3 flex items-center gap-1.5">
-                             <button 
-                                onClick={handleVoiceInput}
-                                className={`p-2 transition-colors rounded-lg hover:bg-gray-200 dark:hover:bg-white/10 ${isListening ? 'text-red-500 animate-pulse' : 'text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white'}`}
-                            >
-                                <Icons.Mic size={16} />
-                            </button>
-                             <button 
-                                onClick={handleSendMessage}
-                                disabled={!input.trim() || isTyping}
-                                className="p-2 bg-gray-900 dark:bg-white text-white dark:text-black rounded-xl disabled:opacity-50 hover:bg-gray-700 dark:hover:bg-gray-200 transition-colors shadow-sm"
-                            >
-                                <Icons.ArrowUp size={16} />
-                            </button>
+                             <Tooltip content="Voice Input" position="top">
+                               <button 
+                                  onClick={handleVoiceInput}
+                                  className={`p-2 transition-colors rounded-lg hover:bg-gray-200 dark:hover:bg-white/10 ${isListening ? 'text-red-500 animate-pulse' : 'text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white'}`}
+                              >
+                                  <Icons.Mic size={16} />
+                              </button>
+                             </Tooltip>
+                             <Tooltip content="Send Message" position="top">
+                               <button 
+                                  onClick={handleSendMessage}
+                                  disabled={!input.trim() || isTyping}
+                                  className="p-2 bg-gray-900 dark:bg-white text-white dark:text-black rounded-xl disabled:opacity-50 hover:bg-gray-700 dark:hover:bg-gray-200 transition-colors shadow-sm"
+                              >
+                                  <Icons.ArrowUp size={16} />
+                              </button>
+                             </Tooltip>
                         </div>
                     </div>
                 </div>
@@ -547,14 +589,14 @@ const App: React.FC = () => {
                         <div className="flex items-center bg-gray-100 dark:bg-[#050505] rounded-lg p-1 border border-gray-200 dark:border-white/5">
                             <button 
                                 onClick={() => setViewMode('preview')}
-                                className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-xs font-medium transition-all ${viewMode === 'preview' ? 'bg-white dark:bg-white/10 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                                className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-xs font-medium transition-all ${viewMode === 'preview' ? 'bg-white dark:bg-white/10 shadow-sm text-black dark:text-white' : 'text-gray-500 hover:text-black dark:hover:text-white'}`}
                             >
                                 <Icons.Eye size={14} />
                                 Preview
                             </button>
                             <button 
                                 onClick={() => setViewMode('code')}
-                                className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-xs font-medium transition-all ${viewMode === 'code' ? 'bg-white dark:bg-white/10 shadow-sm text-gray-900 dark:text-white' : 'text-gray-500 hover:text-gray-700 dark:hover:text-gray-300'}`}
+                                className={`flex items-center gap-2 px-4 py-1.5 rounded-md text-xs font-medium transition-all ${viewMode === 'code' ? 'bg-white dark:bg-white/10 shadow-sm text-black dark:text-white' : 'text-gray-500 hover:text-black dark:hover:text-white'}`}
                             >
                                 <Icons.Code size={14} />
                                 Code
@@ -567,13 +609,14 @@ const App: React.FC = () => {
                              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                              localhost:3000
                         </div>
-                        <button 
-                            onClick={() => setIsFullscreen(!isFullscreen)}
-                            className="p-2 text-gray-500 hover:text-gray-900 dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-white/5"
-                            title={isFullscreen ? "Exit Fullscreen" : "Fullscreen"}
-                        >
-                            {isFullscreen ? <Icons.Minimize size={16} /> : <Icons.Maximize size={16} />}
-                        </button>
+                        <Tooltip content={isFullscreen ? "Exit Fullscreen" : "Fullscreen"} position="left">
+                          <button 
+                              onClick={() => setIsFullscreen(!isFullscreen)}
+                              className="p-2 text-gray-500 hover:text-black dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-white/5"
+                          >
+                              {isFullscreen ? <Icons.Minimize size={16} /> : <Icons.Maximize size={16} />}
+                          </button>
+                        </Tooltip>
                     </div>
                 </div>
 
@@ -622,13 +665,15 @@ const App: React.FC = () => {
                            ))}
                            <div className="flex-1"></div>
                            <div className="px-4 flex items-center">
-                                <button 
-                                    onClick={handleCopyCode}
-                                    className="flex items-center gap-2 text-xs text-gray-400 hover:text-white transition-colors py-1.5"
-                                >
-                                    {isCopied ? <Icons.Check size={14} className="text-green-400" /> : <Icons.Copy size={14} />}
-                                    {isCopied ? 'Copied' : 'Copy'}
-                                </button>
+                                <Tooltip content="Copy to Clipboard" position="left">
+                                  <button 
+                                      onClick={handleCopyCode}
+                                      className="flex items-center gap-2 text-xs text-gray-400 hover:text-white transition-colors py-1.5"
+                                  >
+                                      {isCopied ? <Icons.Check size={14} className="text-green-400" /> : <Icons.Copy size={14} />}
+                                      {isCopied ? 'Copied' : 'Copy'}
+                                  </button>
+                                </Tooltip>
                            </div>
                         </div>
 

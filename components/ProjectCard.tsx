@@ -21,14 +21,14 @@ export const ProjectCard: React.FC<ProjectCardProps> = ({ project, onClick }) =>
         />
       </div>
       <div className="p-5 flex flex-col flex-grow z-20">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-gray-200 group-hover:text-black dark:group-hover:text-white transition-colors mb-2 truncate">
+        <h3 className="text-lg font-medium text-black dark:text-white group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors mb-2 truncate">
           {project.title}
         </h3>
-        <p className="text-sm text-gray-500 dark:text-gray-500 line-clamp-2 mb-4 leading-relaxed">
+        <p className="text-sm text-gray-500 dark:text-gray-300 line-clamp-2 mb-4 leading-relaxed group-hover:text-black dark:group-hover:text-white transition-colors">
           {project.description}
         </p>
         <div className="mt-auto flex items-center justify-between">
-          <span className="text-xs text-gray-400 dark:text-gray-600 font-mono">{project.date}</span>
+          <span className="text-xs text-gray-400 dark:text-gray-500 font-mono group-hover:text-gray-600 dark:group-hover:text-gray-300 transition-colors">{project.date}</span>
           <div className="w-2.5 h-2.5 rounded-full bg-gray-200 dark:bg-gray-700 group-hover:bg-black dark:group-hover:bg-white transition-colors" />
         </div>
       </div>
