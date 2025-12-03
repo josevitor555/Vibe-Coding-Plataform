@@ -25,7 +25,8 @@ import {
   FileJson,
   FileType,
   Settings,
-  File
+  File,
+  Bot
 } from 'lucide-react';
 
 export const Icons = {
@@ -55,5 +56,6 @@ export const Icons = {
   FileJson,
   FileType,
   Settings,
-  File
+  File,
+  Bot
 };

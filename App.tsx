@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Icons } from './components/Icons';
 import { ProjectCard } from './components/ProjectCard';
-import { Tooltip } from './components/Tooltip';
 import { ChatMessage, ProjectTemplate, ModelType } from './types';
 import { createVibeCodeSession } from './services/gemini';
 import { Chat, GenerateContentResponse } from "@google/genai";
@@ -44,6 +43,26 @@ const RECENT_PROJECTS: ProjectTemplate[] = [
 
 type FileType = 'index.html' | 'styles.css' | 'script.js';
 
+interface ProjectFile {
+    name: string;
+    content: string;
+    language: string;
+}
+
+interface AIModel {
+    id: string;
+    name: string;
+    description: string;
+    icon?: React.ReactNode;
+}
+
+const MODELS: AIModel[] = [
+    { id: 'gemini-3-pro', name: 'Gemini 3 Pro', description: 'Most creative & capable' },
+    { id: 'claude-3-5', name: 'Claude 3.5 Sonnet', description: 'Exceptional coding' },
+    { id: 'gpt-4o', name: 'GPT-4o', description: 'High intelligence' },
+    { id: 'grok-3', name: 'Grok 3', description: 'Maximum fun & speed' },
+];
+
 const App: React.FC = () => {
   const [input, setInput] = useState('');
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -51,12 +70,16 @@ const App: React.FC = () => {
   const [isWorkspaceMode, setIsWorkspaceMode] = useState(false);
   const [chatSession, setChatSession] = useState<Chat | null>(null);
   const [viewMode, setViewMode] = useState<'preview' | 'code'>('preview');
-  const [currentCode, setCurrentCode] = useState('');
   const [activeFile, setActiveFile] = useState<FileType>('index.html');
   const [isCopied, setIsCopied] = useState(false);
   const [theme, setTheme] = useState<'dark' | 'light'>('dark');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [isListening, setIsListening] = useState(false);
+  const [files, setFiles] = useState<ProjectFile[]>([]);
+  
+  // Model Selection State
+  const [selectedModel, setSelectedModel] = useState<AIModel>(MODELS[0]);
+  const [showModelDropdown, setShowModelDropdown] = useState(false);
   
   // Ref for the emulator iframe
   const iframeRef = useRef<HTMLIFrameElement>(null);
@@ -84,18 +107,16 @@ const App: React.FC = () => {
   // Syntax Highlighting Effect
   useEffect(() => {
     if (viewMode === 'code') {
-      // Use setTimeout to allow the DOM to update with new code before highlighting
       setTimeout(() => {
         if ((window as any).Prism) {
           (window as any).Prism.highlightAll();
         }
       }, 10);
     }
-  }, [viewMode, currentCode, activeFile]);
+  }, [viewMode, files, activeFile]);
 
   const handleInput = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setInput(e.target.value);
-    // Auto-resize textarea
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
       textareaRef.current.style.height = `${Math.min(textareaRef.current.scrollHeight, 300)}px`;
@@ -107,7 +128,6 @@ const App: React.FC = () => {
       setInput(prompt);
       if (textareaRef.current) {
         textareaRef.current.focus();
-        // Adjust height for the new content
         setTimeout(() => {
             if (textareaRef.current) {
                 textareaRef.current.style.height = 'auto';
@@ -149,7 +169,6 @@ const App: React.FC = () => {
         const spacer = prev.length > 0 && !prev.endsWith(' ') ? ' ' : '';
         return prev + spacer + transcript;
       });
-      // Adjust textarea height after insertion
       setTimeout(() => {
          if (textareaRef.current) {
             textareaRef.current.style.height = 'auto';
@@ -172,15 +191,12 @@ const App: React.FC = () => {
   };
 
   const extractHtmlFromResponse = (text: string) => {
-    // Try to extract content between ```html and ```
     const match = text.match(/```html([\s\S]*?)```/);
     if (match && match[1]) {
       return match[1];
     }
-    // Fallback: Check for doctype if markdown blocks aren't fully formed yet
     if (text.includes("<!DOCTYPE html>")) {
         const startIndex = text.indexOf("<!DOCTYPE html>");
-        // Remove trailing markdown characters if present (e.g., ``` at the end)
         let html = text.substring(startIndex);
         html = html.replace(/```$/, '');
         return html;
@@ -190,64 +206,105 @@ const App: React.FC = () => {
 
   const detectFiles = (html: string) => {
     if (!html) return [];
-    const files = [
-        { name: 'index.html', icon: Icons.FileCode } // Always present if HTML is generated
+    const detected = [
+        { name: 'index.html', icon: Icons.FileCode }
     ];
     
     if (/<style[^>]*>[\s\S]*?<\/style>/i.test(html)) {
-        files.push({ name: 'styles.css', icon: Icons.FileType });
+        detected.push({ name: 'styles.css', icon: Icons.FileType });
     }
     
-    // Check for inline scripts that are not just src imports
     if (/<script(?![^>]*src=)([^>]*>)([\s\S]*?)<\/script>/gi.test(html)) {
-         files.push({ name: 'script.js', icon: Icons.FileJson });
+         detected.push({ name: 'script.js', icon: Icons.FileJson });
     }
     
-    return files;
+    return detected;
+  };
+
+  const syncAiToFiles = (html: string) => {
+    const newFiles: ProjectFile[] = [];
+
+    // 1. index.html (Cleaned)
+    // We keep the scripts/styles in index.html for simplicity in this emulator logic, 
+    // but in a real app we might strip them if we separate them fully.
+    // For now, index.html contains everything.
+    newFiles.push({
+        name: 'index.html',
+        content: html,
+        language: 'html'
+    });
+
+    // 2. styles.css
+    const styleMatch = html.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
+    if (styleMatch) {
+        newFiles.push({
+            name: 'styles.css',
+            content: styleMatch[1].trim(),
+            language: 'css'
+        });
+    }
+
+    // 3. script.js
+    const scriptMatches = [...html.matchAll(/<script(?![^>]*src=)([^>]*>)([\s\S]*?)<\/script>/gi)];
+    if (scriptMatches.length > 0) {
+        const jsContent = scriptMatches.map(m => m[2].trim()).join('\n\n');
+        newFiles.push({
+            name: 'script.js',
+            content: jsContent,
+            language: 'javascript'
+        });
+    }
+
+    setFiles(newFiles);
+    
+    // Default to displaying index.html if no file selected or if current file gone
+    if (!newFiles.find(f => f.name === activeFile)) {
+        setActiveFile('index.html');
+    }
+  };
+
+  const compileProject = () => {
+    // Reconstruct the full HTML from the files array
+    const indexFile = files.find(f => f.name === 'index.html');
+    if (!indexFile) return '';
+
+    let fullHtml = indexFile.content;
+
+    // In this simple implementation, we assume index.html is the source of truth from AI.
+    // If the user edits "styles.css", we would need to inject it back into index.html.
+    // For now, let's just return index.html as the AI generates the "Single File" output as requested.
+    // To support true separate editing, we'd need to parse/replace the <style> tag in index.html with the content of styles.css.
+    
+    // Attempt simple injection for live editing:
+    const cssFile = files.find(f => f.name === 'styles.css');
+    if (cssFile) {
+        fullHtml = fullHtml.replace(/<style[^>]*>[\s\S]*?<\/style>/i, `<style>${cssFile.content}</style>`);
+    }
+
+    const jsFile = files.find(f => f.name === 'script.js');
+    if (jsFile) {
+        // This is tricky with multiple scripts, but we'll replace the last inline script or append
+        // For simplicity in this demo, we won't fully support bi-directional sync yet unless requested.
+        // We'll trust the AI output loop.
+    }
+
+    return fullHtml;
   };
 
   const updateEmulator = (fullText: string) => {
     const htmlCode = extractHtmlFromResponse(fullText);
     if (htmlCode) {
-       setCurrentCode(htmlCode);
+       syncAiToFiles(htmlCode);
        if (iframeRef.current) {
-          // Using srcdoc is smoother than document.write for streaming updates
           iframeRef.current.srcdoc = htmlCode;
        }
     }
   };
 
-  const getVirtualFileContent = (html: string, file: FileType) => {
-    if (!html) return '';
-    switch (file) {
-      case 'index.html':
-        return html;
-      case 'styles.css':
-        const styleMatch = html.match(/<style[^>]*>([\s\S]*?)<\/style>/i);
-        return styleMatch ? styleMatch[1].trim() : '/* No custom CSS found */';
-      case 'script.js':
-        // Find scripts that are not CDNs (no src attribute)
-        // We now include ALL inline scripts, including the tailwind config
-        const scriptMatches = [...html.matchAll(/<script(?![^>]*src=)([^>]*>)([\s\S]*?)<\/script>/gi)];
-        return scriptMatches.map(m => m[2].trim()).join('\n\n') || '// No custom JS found';
-      default:
-        return html;
-    }
-  };
-
-  const getLanguageClass = (file: FileType) => {
-    switch (file) {
-        case 'index.html': return 'language-html';
-        case 'styles.css': return 'language-css';
-        case 'script.js': return 'language-javascript';
-        default: return 'language-html';
-    }
-  };
-
   const handleCopyCode = () => {
-    const content = getVirtualFileContent(currentCode, activeFile);
-    if (content) {
-      navigator.clipboard.writeText(content);
+    const file = files.find(f => f.name === activeFile);
+    if (file) {
+      navigator.clipboard.writeText(file.content);
       setIsCopied(true);
       setTimeout(() => setIsCopied(false), 2000);
     }
@@ -265,15 +322,13 @@ const App: React.FC = () => {
     setMessages(prev => [...prev, userMessage]);
     setInput('');
     setIsTyping(true);
-    setIsWorkspaceMode(true); // Switch to workspace view
+    setIsWorkspaceMode(true);
 
-    // Reset textarea height
     if (textareaRef.current) textareaRef.current.style.height = 'auto';
 
     try {
       let fullResponseText = "";
       
-      // Create a placeholder message for the model that we will update
       setMessages(prev => [
         ...prev, 
         { role: 'model', text: '', timestamp: new Date(), isStreaming: true }
@@ -287,7 +342,6 @@ const App: React.FC = () => {
         if (text) {
           fullResponseText += text;
           
-          // Update chat UI
           setMessages(prev => {
             const newMessages = [...prev];
             const lastMsg = newMessages[newMessages.length - 1];
@@ -297,12 +351,10 @@ const App: React.FC = () => {
             return newMessages;
           });
 
-          // Update Emulator Live
           updateEmulator(fullResponseText);
         }
       }
 
-      // Finalize message state
       setMessages(prev => {
         const newMessages = [...prev];
         const lastMsg = newMessages[newMessages.length - 1];
@@ -332,15 +384,106 @@ const App: React.FC = () => {
     }
   }, [messages, isTyping]);
 
+  // File Management Handlers
+  const handleAddFile = () => {
+    const name = prompt("Enter file name (e.g., utils.js):");
+    if (name) {
+        const ext = name.split('.').pop();
+        let lang = 'javascript';
+        if (ext === 'css') lang = 'css';
+        if (ext === 'html') lang = 'html';
+        if (ext === 'json') lang = 'json';
+        
+        const newFile: ProjectFile = { name, content: '', language: lang };
+        setFiles(prev => [...prev, newFile]);
+        setActiveFile(name as FileType);
+    }
+  };
+
+  const handleDeleteFile = (fileName: string) => {
+    if (fileName === 'index.html') {
+        alert("Cannot delete index.html");
+        return;
+    }
+    if (confirm(`Delete ${fileName}?`)) {
+        setFiles(prev => prev.filter(f => f.name !== fileName));
+        if (activeFile === fileName) setActiveFile('index.html');
+    }
+  };
+
+  const handleRenameFile = (oldName: string) => {
+      if (oldName === 'index.html') return;
+      const newName = prompt("Rename file:", oldName);
+      if (newName && newName !== oldName) {
+          setFiles(prev => prev.map(f => f.name === oldName ? { ...f, name: newName } : f));
+          if (activeFile === oldName) setActiveFile(newName as FileType);
+      }
+  };
+
+  const ModelSelector = () => (
+      <div className="relative">
+        <button 
+            onClick={() => setShowModelDropdown(!showModelDropdown)}
+            className="flex items-center gap-2 px-3 py-2 rounded-xl bg-gray-100 dark:bg-white/5 hover:bg-gray-200 dark:hover:bg-white/10 transition-colors border border-transparent hover:border-gray-300 dark:hover:border-white/10 group"
+        >
+            <Icons.Bot size={18} className="text-gray-500 dark:text-gray-400 group-hover:text-black dark:group-hover:text-white transition-colors" />
+            <span className="text-sm font-medium text-gray-700 dark:text-gray-300 group-hover:text-black dark:group-hover:text-white transition-colors">
+                {selectedModel.name}
+            </span>
+            <Icons.ChevronDown size={14} className={`text-gray-400 dark:text-gray-500 transition-transform duration-300 ${showModelDropdown ? 'rotate-180' : ''}`} />
+        </button>
+
+          {showModelDropdown && (
+              <>
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setShowModelDropdown(false)}
+                  ></div>
+                  <div className="absolute bottom-full left-0 mb-2 w-64 bg-white dark:bg-[#1A1A1A] border border-gray-200 dark:border-white/10 rounded-2xl shadow-2xl overflow-hidden z-50 animate-fade-in origin-bottom-left">
+                      <div className="p-2">
+                        <div className="px-3 py-2 text-xs font-semibold text-gray-500 dark:text-gray-500 uppercase tracking-wider">
+                            Select Model
+                        </div>
+                        {MODELS.map((model) => (
+                            <button
+                                key={model.id}
+                                onClick={() => {
+                                    setSelectedModel(model);
+                                    setShowModelDropdown(false);
+                                }}
+                                className={`w-full text-left px-3 py-2.5 rounded-xl flex items-start justify-between group transition-all duration-200 ${selectedModel.id === model.id ? 'bg-gray-100 dark:bg-white/10' : 'hover:bg-gray-50 dark:hover:bg-white/5'}`}
+                            >
+                                <div>
+                                    <div className={`text-sm font-medium mb-0.5 ${selectedModel.id === model.id ? 'text-black dark:text-white' : 'text-gray-700 dark:text-gray-300'}`}>
+                                        {model.name}
+                                    </div>
+                                    <div className="text-xs text-gray-500 dark:text-gray-500">
+                                        {model.description}
+                                    </div>
+                                </div>
+                                {selectedModel.id === model.id && (
+                                    <Icons.Check size={16} className="text-black dark:text-white mt-1" />
+                                )}
+                            </button>
+                        ))}
+                        <div className="mt-2 pt-2 border-t border-gray-100 dark:border-white/5">
+                            <button className="w-full text-left px-3 py-2 rounded-xl text-xs font-medium text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white hover:bg-gray-50 dark:hover:bg-white/5 transition-colors">
+                                Upgrade to VibeCode Pro
+                            </button>
+                        </div>
+                      </div>
+                  </div>
+              </>
+          )}
+      </div>
+  );
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-[#050505] text-black dark:text-white font-sans selection:bg-gray-300/50 selection:text-black dark:selection:text-white flex flex-col relative overflow-hidden transition-colors duration-500">
       
       {/* BACKGROUND VIBE EFFECTS */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden bg-[#050505]">
-         {/* Pulsing Gray Gradient */}
          <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-gray-800/10 via-[#050505] to-[#050505] animate-pulse-slow"></div>
-         
-         {/* Wave Overlay */}
          <div className="absolute inset-0 opacity-20 bg-[url('https://grainy-gradients.vercel.app/noise.svg')] mix-blend-overlay"></div>
       </div>
 
@@ -364,22 +507,18 @@ const App: React.FC = () => {
         
         <div className="flex items-center gap-5">
             <div className="flex items-center bg-gray-100 dark:bg-[#0F0F0F] rounded-full p-1.5 border border-gray-200 dark:border-white/5">
-                <Tooltip content="Light Mode" position="bottom">
-                  <button 
-                    onClick={() => setTheme('light')}
-                    className={`p-2 rounded-full transition-all duration-300 ${theme === 'light' ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
-                  >
-                    <Icons.Sun size={18} />
-                  </button>
-                </Tooltip>
-                <Tooltip content="Dark Mode" position="bottom">
-                  <button 
-                    onClick={() => setTheme('dark')}
-                    className={`p-2 rounded-full transition-all duration-300 ${theme === 'dark' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
-                  >
-                    <Icons.Moon size={18} />
-                  </button>
-                </Tooltip>
+                <button 
+                  onClick={() => setTheme('light')}
+                  className={`p-2 rounded-full transition-all duration-300 ${theme === 'light' ? 'bg-white text-black shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+                >
+                  <Icons.Sun size={18} />
+                </button>
+                <button 
+                  onClick={() => setTheme('dark')}
+                  className={`p-2 rounded-full transition-all duration-300 ${theme === 'dark' ? 'bg-white/10 text-white shadow-sm' : 'text-gray-400 hover:text-gray-600 dark:hover:text-gray-300'}`}
+                >
+                  <Icons.Moon size={18} />
+                </button>
             </div>
             <div className="w-9 h-9 rounded-full bg-gray-200 dark:bg-white/10 border border-white/10 ring-2 ring-white dark:ring-black"></div>
         </div>
@@ -407,8 +546,6 @@ const App: React.FC = () => {
 
             {/* Input Component (Landing) */}
             <div className="w-full max-w-4xl relative group z-20">
-                
-                {/* Decorative Grid Pattern */}
                 <div className="absolute -top-24 -bottom-24 -left-24 -right-24 -z-10 pointer-events-none">
                     <div className="absolute inset-0 bg-[linear-gradient(to_right,#00000010_1px,transparent_1px),linear-gradient(to_bottom,#00000010_1px,transparent_1px)] dark:bg-[linear-gradient(to_right,#ffffff10_1px,transparent_1px),linear-gradient(to_bottom,#ffffff10_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_50%,#000_0%,transparent_100%)]" />
                 </div>
@@ -425,18 +562,16 @@ const App: React.FC = () => {
                         rows={1}
                     />
                      <div className="flex items-center justify-between px-4 pb-2 pt-3">
-                        <div className="flex gap-3">
-                            <Tooltip content="Attach Context" position="top">
-                              <button className="p-3 text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white transition-colors rounded-xl hover:bg-gray-100 dark:hover:bg-white/5"><Icons.Paperclip size={22} /></button>
-                            </Tooltip>
-                            <Tooltip content="Voice Input" position="top">
-                              <button 
-                                  onClick={handleVoiceInput}
-                                  className={`p-3 transition-colors rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 ${isListening ? 'text-red-500 animate-pulse' : 'text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white'}`}
-                              >
-                                  <Icons.Mic size={22} />
-                              </button>
-                            </Tooltip>
+                        <div className="flex items-center gap-3">
+                            <ModelSelector />
+                            <div className="h-6 w-px bg-gray-200 dark:bg-white/10 mx-1"></div>
+                            <button className="p-2.5 text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white transition-colors rounded-xl hover:bg-gray-100 dark:hover:bg-white/5"><Icons.Paperclip size={20} /></button>
+                            <button 
+                                onClick={handleVoiceInput}
+                                className={`p-2.5 transition-colors rounded-xl hover:bg-gray-100 dark:hover:bg-white/5 ${isListening ? 'text-red-500 animate-pulse' : 'text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white'}`}
+                            >
+                                <Icons.Mic size={20} />
+                            </button>
                         </div>
                         <button 
                             onClick={handleSendMessage}
@@ -488,9 +623,7 @@ const App: React.FC = () => {
                 {/* Chat History */}
                 <div className="flex-1 overflow-y-auto p-5 space-y-8 scrollbar-thin scrollbar-thumb-gray-200 dark:scrollbar-thumb-white/10 scrollbar-track-transparent">
                     {messages.map((msg, idx) => {
-                        // Check for created files if it's a model message
                         const createdFiles = msg.role === 'model' ? detectFiles(extractHtmlFromResponse(msg.text)) : [];
-                        
                         return (
                         <div key={idx} className={`animate-fade-in ${msg.role === 'model' ? '' : 'flex justify-end'}`}>
                             {msg.role === 'user' ? (
@@ -504,7 +637,6 @@ const App: React.FC = () => {
                                         <span className="text-sm font-mono text-gray-500 dark:text-gray-400">VibeCode Engine</span>
                                     </div>
                                     
-                                    {/* File Logs */}
                                     {createdFiles.length > 0 && (
                                         <div className="flex flex-wrap gap-2 mb-3 animate-fade-in">
                                             {createdFiles.map(f => (
@@ -519,7 +651,6 @@ const App: React.FC = () => {
 
                                     <div className="text-gray-600 dark:text-gray-400 text-base leading-relaxed font-mono bg-gray-50 dark:bg-[#0A0A0A] p-5 rounded-2xl border border-gray-200 dark:border-white/5 overflow-x-auto relative group shadow-inner">
                                         <pre className="whitespace-pre-wrap break-words text-sm">
-                                            {/* We only show a preview of the code or the text response */}
                                             {msg.text.substring(0, 300)}...
                                             {msg.isStreaming && <span className="inline-block w-2.5 h-5 bg-black dark:bg-white ml-1.5 animate-pulse align-middle"></span>}
                                         </pre>
@@ -551,24 +682,23 @@ const App: React.FC = () => {
                             className="w-full bg-transparent text-gray-900 dark:text-gray-200 placeholder-gray-500 dark:placeholder-gray-600 px-4 py-3 min-h-[56px] max-h-[160px] resize-none focus:outline-none text-base font-light pr-24"
                             rows={1}
                         />
+                         <div className="absolute bottom-3 left-3 flex items-center gap-2">
+                             <ModelSelector />
+                         </div>
                          <div className="absolute bottom-3 right-3 flex items-center gap-1.5">
-                             <Tooltip content="Voice Input" position="top">
-                               <button 
-                                  onClick={handleVoiceInput}
-                                  className={`p-2 transition-colors rounded-lg hover:bg-gray-200 dark:hover:bg-white/10 ${isListening ? 'text-red-500 animate-pulse' : 'text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white'}`}
-                              >
-                                  <Icons.Mic size={16} />
-                              </button>
-                             </Tooltip>
-                             <Tooltip content="Send Message" position="top">
-                               <button 
+                             <button 
+                                onClick={handleVoiceInput}
+                                className={`p-2 transition-colors rounded-lg hover:bg-gray-200 dark:hover:bg-white/10 ${isListening ? 'text-red-500 animate-pulse' : 'text-gray-400 dark:text-gray-500 hover:text-black dark:hover:text-white'}`}
+                            >
+                                <Icons.Mic size={16} />
+                            </button>
+                             <button 
                                   onClick={handleSendMessage}
                                   disabled={!input.trim() || isTyping}
                                   className="p-2 bg-gray-900 dark:bg-white text-white dark:text-black rounded-xl disabled:opacity-50 hover:bg-gray-700 dark:hover:bg-gray-200 transition-colors shadow-sm"
                               >
                                   <Icons.ArrowUp size={16} />
                               </button>
-                             </Tooltip>
                         </div>
                     </div>
                 </div>
@@ -609,14 +739,12 @@ const App: React.FC = () => {
                              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse"></div>
                              localhost:3000
                         </div>
-                        <Tooltip content={isFullscreen ? "Exit Fullscreen" : "Fullscreen"} position="left">
-                          <button 
-                              onClick={() => setIsFullscreen(!isFullscreen)}
-                              className="p-2 text-gray-500 hover:text-black dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-white/5"
-                          >
-                              {isFullscreen ? <Icons.Minimize size={16} /> : <Icons.Maximize size={16} />}
-                          </button>
-                        </Tooltip>
+                        <button 
+                            onClick={() => setIsFullscreen(!isFullscreen)}
+                            className="p-2 text-gray-500 hover:text-black dark:hover:text-white transition-colors rounded-lg hover:bg-gray-100 dark:hover:bg-white/5"
+                        >
+                            {isFullscreen ? <Icons.Minimize size={16} /> : <Icons.Maximize size={16} />}
+                        </button>
                     </div>
                 </div>
 
@@ -644,53 +772,68 @@ const App: React.FC = () => {
                     </div>
 
                     {/* CODE MODE */}
-                    {/* We force a dark background here for IDE feel using bg-[#1e1e1e] and ensure transparency for Prism */}
-                    <div className={`absolute inset-0 w-full h-full bg-[#1e1e1e] overflow-hidden flex flex-col transition-all duration-500 ${viewMode === 'code' ? 'opacity-100 translate-x-0 z-10' : 'opacity-0 translate-x-10 z-0 pointer-events-none'}`}>
+                    {/* Left Sidebar File Explorer */}
+                    <div className={`absolute inset-0 w-full h-full bg-[#1e1e1e] overflow-hidden flex transition-all duration-500 ${viewMode === 'code' ? 'opacity-100 translate-x-0 z-10' : 'opacity-0 translate-x-10 z-0 pointer-events-none'}`}>
                         
-                        {/* File Tabs */}
-                        <div className="flex items-center overflow-x-auto bg-[#252526] border-b border-[#333]">
-                           {[
-                                { id: 'index.html', icon: Icons.FileCode, label: 'index.html' },
-                                { id: 'styles.css', icon: Icons.FileType, label: 'styles.css' },
-                                { id: 'script.js', icon: Icons.FileJson, label: 'script.js' },
-                           ].map((file) => (
-                               <button 
-                                    key={file.id}
-                                    onClick={() => setActiveFile(file.id as FileType)}
-                                    className={`flex items-center gap-2 px-4 py-3 text-xs font-medium font-mono border-r border-[#333] transition-colors min-w-max ${activeFile === file.id ? 'bg-[#1e1e1e] text-white border-t-2 border-t-[#A855F7] border-b-transparent' : 'text-gray-400 hover:bg-[#2d2d2d] hover:text-gray-300'}`}
-                               >
-                                    <file.icon size={14} className={activeFile === file.id ? 'text-[#A855F7]' : 'text-gray-500'} />
-                                    {file.label}
-                               </button>
-                           ))}
-                           <div className="flex-1"></div>
-                           <div className="px-4 flex items-center">
-                                <Tooltip content="Copy to Clipboard" position="left">
-                                  <button 
+                        {/* File Explorer Sidebar */}
+                        <div className="w-64 bg-[#252526] border-r border-[#333] flex flex-col">
+                            <div className="p-4 text-xs font-semibold text-gray-400 tracking-wider uppercase flex items-center justify-between">
+                                <span>Explorer</span>
+                                <button onClick={handleAddFile} className="hover:text-white transition-colors"><Icons.File size={14} /></button>
+                            </div>
+                            <div className="flex-1 overflow-y-auto">
+                                {files.map(file => (
+                                    <div 
+                                        key={file.name}
+                                        onClick={() => setActiveFile(file.name as FileType)}
+                                        className={`group flex items-center justify-between px-4 py-2 cursor-pointer text-sm font-mono transition-colors ${activeFile === file.name ? 'bg-[#37373d] text-white' : 'text-gray-400 hover:bg-[#2a2d2e] hover:text-gray-200'}`}
+                                    >
+                                        <div className="flex items-center gap-2 truncate">
+                                            {file.language === 'html' && <Icons.FileCode size={14} className="text-orange-400" />}
+                                            {file.language === 'css' && <Icons.FileType size={14} className="text-blue-400" />}
+                                            {file.language === 'javascript' && <Icons.FileJson size={14} className="text-yellow-400" />}
+                                            <span className="truncate">{file.name}</span>
+                                        </div>
+                                        {file.name !== 'index.html' && (
+                                            <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                <button onClick={(e) => { e.stopPropagation(); handleRenameFile(file.name); }} className="p-1 hover:text-white"><Icons.Settings size={12} /></button>
+                                                <button onClick={(e) => { e.stopPropagation(); handleDeleteFile(file.name); }} className="p-1 hover:text-red-400"><Icons.Check size={12} className="rotate-45" /></button>
+                                            </div>
+                                        )}
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Editor Area */}
+                        <div className="flex-1 flex flex-col h-full overflow-hidden">
+                             {/* Editor Header */}
+                             <div className="flex items-center justify-between px-4 py-2 bg-[#1e1e1e] border-b border-[#333]">
+                                 <div className="text-sm text-gray-400 font-mono">{activeFile}</div>
+                                 <button 
                                       onClick={handleCopyCode}
                                       className="flex items-center gap-2 text-xs text-gray-400 hover:text-white transition-colors py-1.5"
                                   >
                                       {isCopied ? <Icons.Check size={14} className="text-green-400" /> : <Icons.Copy size={14} />}
                                       {isCopied ? 'Copied' : 'Copy'}
                                   </button>
-                                </Tooltip>
-                           </div>
-                        </div>
+                             </div>
 
-                        {/* Editor Area */}
-                        <div className="flex-1 overflow-auto p-6 font-mono text-sm leading-relaxed scrollbar-thin scrollbar-thumb-[#424242] scrollbar-track-transparent">
-                            {currentCode ? (
-                                <pre className="!bg-transparent !m-0 !p-0">
-                                    <code className={getLanguageClass(activeFile)}>
-                                        {getVirtualFileContent(currentCode, activeFile)}
-                                    </code>
-                                </pre>
-                            ) : (
-                                <div className="h-full flex flex-col items-center justify-center text-gray-600 gap-4">
-                                    <Icons.Code size={32} className="opacity-20" />
-                                    <span className="text-base">No code generated yet.</span>
-                                </div>
-                            )}
+                             {/* Code Content */}
+                             <div className="flex-1 overflow-auto p-6 font-mono text-sm leading-relaxed scrollbar-thin scrollbar-thumb-[#424242] scrollbar-track-transparent">
+                                {files.find(f => f.name === activeFile)?.content ? (
+                                    <pre className="!bg-transparent !m-0 !p-0">
+                                        <code className={`language-${files.find(f => f.name === activeFile)?.language}`}>
+                                            {files.find(f => f.name === activeFile)?.content}
+                                        </code>
+                                    </pre>
+                                ) : (
+                                    <div className="h-full flex flex-col items-center justify-center text-gray-600 gap-4">
+                                        <Icons.Code size={32} className="opacity-20" />
+                                        <span className="text-base">No code generated yet.</span>
+                                    </div>
+                                )}
+                            </div>
                         </div>
                     </div>
 
